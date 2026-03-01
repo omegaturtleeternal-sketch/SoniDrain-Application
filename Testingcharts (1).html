@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoniDrain Sensor Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            background-color: rgb(252, 253, 255);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        select, button {
+            padding: 10px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #chartContainer {
+            position: relative;
+            height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 SoniDrain Sensor Chart</h1>
+        
+        <div class="controls">
+            <label for="chartType">Chart Type:</label>
+            <select id="chartType">
+                <option value="line">Line Chart</option>
+            </select>
+            <label for="valueField">Value Field:</label>
+            <select id="valueField">
+                <option value="">(auto-detect)</option>
+            </select>
+
+            <label for="autoRefresh">Auto-refresh:</label>
+            <input type="checkbox" id="autoRefresh">
+            <label for="refreshInterval">Interval (s):</label>
+            <input id="refreshInterval" type="number" value="30" min="5" style="width:70px">
+
+           <button id="refreshBtn">Fetch Data</button>
+
+        </div>
+        
+        <div id="chartContainer">
+            <h3>Output:</h3>
+            <pre id="output"></pre>
+
+            <canvas id="myChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // SUPABASE CONFIGURATION
+        const SUPABASE_URL = 'https://aeuobgeyqinnnrpjyktz.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_rV_TR9zoVwXge5TA6REvMg_BpFS5MAC';
+
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        let chart = null;
+
+        // Fallback sample data (used when DB is unreachable or empty)
+        const sampleData = {
+            labels: ['2026-02-20 10:00','2026-02-20 11:00','2026-02-20 12:00','2026-02-20 13:00','2026-02-20 14:00'],
+            data: [12, 15, 9, 20, 18],
+            field: 'sample'
+        };
+
+        // Strict numeric detector: only pure numbers (optionally with decimal), avoids parsing date strings like "2026-02-20..."
+        function isStrictNumeric(v) {
+            if (typeof v === 'number' && Number.isFinite(v)) return true;
+            if (typeof v !== 'string') return false;
+            return /^\s*-?\d+(?:\.\d+)?\s*$/.test(v);
+        }
+
+        // Fetch rows from Supabase and normalize into { labels, data, field }
+        async function fetchSupabaseData(selectedField = null) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('sensors_table')
+                    .select('*')
+                    .limit(1000);
+
+                if (error) {
+                    console.warn('Supabase error:', error);
+                    return null;
+                }
+
+                if (!data || data.length === 0) {
+                    return null;
+                }
+
+                
+
+                // Populate value field selector based on numeric columns
+                populateValueFields(data);
+
+                // Determine timestamp-like field (if any)
+                const sampleRow = data[0];
+                const keys = Object.keys(sampleRow);
+                const timeField = keys.find(k => /time|date|timestamp|created_at/i.test(k));
+
+                // Sort by timestamp field if present
+                if (timeField) {
+                    data.sort((a,b) => new Date(a[timeField]) - new Date(b[timeField]));
+                }
+
+                // Determine numeric field to plot (first numeric field that's not the timeField)
+                let valueField = null;
+                for (const k of keys) {
+                    if (k === timeField) continue;
+                    if (k.toLowerCase() === 'id') continue;
+                    if (data.some(r => isStrictNumeric(r[k]))) {
+                        valueField = k;
+                        break;
+                    }
+                }
+
+                // If caller supplied a selected field, prefer that
+                if (selectedField && selectedField !== '') {
+                    valueField = selectedField;
+                }
+
+                // Build labels and values
+                const labels = data.map((row, idx) => {
+                    if (timeField && row[timeField]) {
+                        const d = new Date(row[timeField]);
+                        return isNaN(d) ? String(row[timeField]) : d.toLocaleString();
+                    }
+                    return `#${idx+1}`;
+                });
+
+                const values = data.map(row => {
+                    if (!valueField) return 0;
+                    const v = row[valueField];
+                    if (typeof v === 'number') return v;
+                    if (isStrictNumeric(v)) return Number(v);
+                    return 0;
+                });
+
+                return {
+                    labels,
+                    data: values,
+                    field: valueField || 'unknown',
+                    timeField: timeField || null
+                };
+
+            } catch (err) {
+                console.warn('Unable to connect to Supabase:', err);
+                return null;
+            }
+        }
+
+        // Render or re-render the chart with provided normalized data
+        async function generateChart() {
+            const chartType = document.getElementById('chartType').value;
+            const ctx = document.getElementById('myChart').getContext('2d');
+            const selectedField = document.getElementById('valueField') ? document.getElementById('valueField').value : null;
+
+            let normalized = await fetchSupabaseData(selectedField);
+            if (!normalized) {
+                normalized = sampleData;
+                document.getElementById('output').textContent = 'Using sample fallback data';
+            }
+
+            if (chart) chart.destroy();
+
+            // Create datasets for all numeric fields
+            const datasets = [];
+            const colors = ['#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6f42c1'];
+            
+            if (selectedField && selectedField !== '') {
+                // Single field selected
+                datasets.push({
+                    label: normalized.field || 'sensor',
+                    data: normalized.data,
+                    borderColor: colors[0],
+                    backgroundColor: 'rgba(0, 123, 255, 0.12)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    fill: chartType === 'line'
+                });
+            } else {
+                // Auto-detect: create lines for all numeric fields
+                try {
+                    const { data: dbData } = await supabaseClient.from('sensors_table').select('*').limit(1000);
+                    if (dbData && dbData.length > 0) {
+                        const sampleRow = dbData[0];
+                        const keys = Object.keys(sampleRow);
+                        const timeField = keys.find(k => /time|date|timestamp|created_at/i.test(k));
+                        
+                        // Sort by timestamp
+                        if (timeField) {
+                            dbData.sort((a,b) => new Date(a[timeField]) - new Date(b[timeField]));
+                        }
+                        
+                        let colorIdx = 0;
+
+                        for (const k of keys) {
+                            if (k === timeField || k.toLowerCase() === 'id') continue;
+                            if (dbData.some(r => isStrictNumeric(r[k]))) {
+                                const values = dbData.map(row => {
+                                    const v = row[k];
+                                    if (typeof v === 'number') return v;
+                                    if (isStrictNumeric(v)) return Number(v);
+                                    return 0;
+                                });
+                                datasets.push({
+                                    label: k,
+                                    data: values,
+                                    borderColor: colors[colorIdx % colors.length],
+                                    backgroundColor: 'rgba(0, 0, 0, 0)',
+                                    borderWidth: 2,
+                                    tension: 0.3,
+                                    pointRadius: 2,
+                                    fill: false
+                                });
+                                colorIdx++;
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Error building multi-field datasets:', err);
+                }
+            }
+
+            chart = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: normalized.labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            ticks: { maxRotation: 45, minRotation: 0 }
+                        },
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: { display: true, position: 'top' }
+                    }
+                }
+            });
+        }
+        // Populate the value-field selector with detected numeric fields
+        function populateValueFields(rows) {
+            try {
+                const sel = document.getElementById('valueField');
+                // preserve current selection
+                const current = sel.value;
+                const sample = rows && rows[0] ? rows[0] : null;
+                if (!sample) return;
+                const keys = Object.keys(sample);
+                // clear (but keep the auto option)
+                sel.innerHTML = '<option value="">(auto-detect)</option>';
+                const numericKeys = [];
+                for (const k of keys) {
+                    // Skip id field
+                    if (k.toLowerCase() === 'id') continue;
+                    // skip obvious time-like fields (they often start with a year and would look numeric to parseFloat)
+                    if (/time|date|timestamp|created_at/i.test(k)) continue;
+                    if (rows.some(r => isStrictNumeric(r[k]))) numericKeys.push(k);
+                }
+                for (const k of numericKeys) {
+                    const opt = document.createElement('option');
+                    opt.value = k;
+                    opt.textContent = k;
+                    sel.appendChild(opt);
+                }
+                if (current) sel.value = current;
+            } catch (e) {
+                console.warn('populateValueFields failed', e);
+            }
+        }
+
+        // Auto-refresh management
+        let autoRefreshIntervalId = null;
+        function startAutoRefresh() {
+            stopAutoRefresh();
+            const sec = Math.max(5, parseInt(document.getElementById('refreshInterval').value || '30', 10));
+            autoRefreshIntervalId = setInterval(() => {
+                generateChart();
+            }, sec * 1000);
+        }
+        function stopAutoRefresh() {
+            if (autoRefreshIntervalId) {
+                clearInterval(autoRefreshIntervalId);
+                autoRefreshIntervalId = null;
+            }
+        }
+
+        // Wire the button to regenerate chart on demand
+        document.getElementById('refreshBtn').addEventListener('click', generateChart);
+        document.getElementById('autoRefresh').addEventListener('change', (e) => {
+            if (e.target.checked) startAutoRefresh(); else stopAutoRefresh();
+        });
+
+        // Generate chart on page load and wire controls
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Try one fetch to populate fields and draw chart
+            await generateChart();
+        });
+    </script>
+</body>
+</html>
+
