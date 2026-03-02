@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SoniDrain</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="sonidrain.css"/>
+</head>
+<body>
+
+<nav> <!--start of nav bar-->
+  <div class="nav-inner">
+    <!-- title -->
+    <a class="nav-title" href="#">Soni<span>Drain</span></a>
+
+    <!-- dropdown nav -->
+    <div class="dropdown">
+      <button class="dropdown-toggle" aria-haspopup="true" aria-expanded="false">
+        Navigate
+        <!--chevron icon-->
+        <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      <!--content of nav button-->
+      <div class="dropdown-menu" role="menu">
+        <a href="Sensors.html" role="menuitem">Sensors</a>
+        <a href="Testingchart.html" role="menuitem">Graphs</a>
+        <a href="#" role="menuitem">Map</a>
+        <div class="dropdown-divider"></div>
+        <a href="Aboutus.html" role="menuitem">About Us</a>
+      </div>
+    </div>
+
+    <!--hamburger icon for mobile-->
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu" aria-expanded="false">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+  </div>
+
+  <!--mobile drawer-->
+  <div class="mobile-menu" id="mobileMenu" aria-hidden="true">
+    <a href="Sensors.html">Sensors</a>
+    <a href="Testingchart.html">Graphs</a>
+    <a href="#">Map</a>
+    <div class="mobile-divider"></div>
+    <a href="Aboutus.html">About Us</a>
+  </div>
+</nav>
+ 
+<div class ="text-container">
+  <p>loren ipsum loren ipsum</p></linebreak>
+  <p>loren ipsum loren ipsum</p>
+</div>
+
+<!--javascript for responsiveness-->
+<script>
+  const btn    = document.getElementById('hamburger');
+  const drawer = document.getElementById('mobileMenu');
+
+  btn.addEventListener('click', () => {
+    const isOpen = drawer.classList.toggle('open');
+    btn.classList.toggle('open', isOpen);
+    btn.setAttribute('aria-expanded', isOpen);
+    drawer.setAttribute('aria-hidden', !isOpen);
+  });
+
+  drawer.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', () => {
+      drawer.classList.remove('open');
+      btn.classList.remove('open');
+      btn.setAttribute('aria-expanded', false);
+      drawer.setAttribute('aria-hidden', true);
+    });
+  });
+</script>
+
+</body>
+</html>
