@@ -8,6 +8,86 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="sonidrain.css"/>
+    <style>
+      /* ── ALERT BANNER ─────────────────────────────────────────── */
+      .alert-banner {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin: 0 0 18px 0;
+        padding: 14px 20px;
+        border-radius: 10px;
+        border: 1.5px solid transparent;
+        font-family: 'DM Sans', sans-serif;
+        transition: background 0.4s, border-color 0.4s;
+        position: relative;
+        overflow: hidden;
+      }
+      .alert-banner::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        opacity: 0.06;
+        pointer-events: none;
+        background: repeating-linear-gradient(
+          45deg, transparent, transparent 6px,
+          currentColor 6px, currentColor 7px
+        );
+      }
+
+      /* Level 0 – Normal */
+      .alert-normal {
+        background: rgba(34, 85, 60, 0.25);
+        border-color: rgba(80, 200, 120, 0.45);
+        color: #6ddc96;
+      }
+      /* Level 1 – Warning */
+      .alert-warning {
+        background: rgba(90, 70, 10, 0.35);
+        border-color: rgba(255, 200, 50, 0.60);
+        color: #ffd44d;
+        animation: pulse-warn 2s infinite;
+      }
+      /* Level 2 – Critical Alert */
+      .alert-alert {
+        background: rgba(100, 20, 20, 0.40);
+        border-color: rgba(255, 80, 80, 0.70);
+        color: #ff6b6b;
+        animation: pulse-alert 1s infinite;
+      }
+
+      @keyframes pulse-warn {
+        0%,100% { box-shadow: 0 0 0   0 rgba(255,200,50,0); }
+        50%      { box-shadow: 0 0 12px 3px rgba(255,200,50,0.3); }
+      }
+      @keyframes pulse-alert {
+        0%,100% { box-shadow: 0 0 0   0 rgba(255,80,80,0); }
+        50%      { box-shadow: 0 0 16px 4px rgba(255,80,80,0.4); }
+      }
+
+      .alert-icon   { font-size: 1.8rem; flex-shrink: 0; }
+      .alert-content { flex: 1; }
+      .alert-title  {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .alert-desc   { font-size: 0.82rem; margin-top: 3px; opacity: 0.85; }
+      .alert-level-badge {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        padding: 4px 10px;
+        border-radius: 5px;
+        border: 1px solid currentColor;
+        opacity: 0.9;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+    </style>
 </head>
 <body class="chart-page">
 
@@ -22,10 +102,10 @@
 
     <!-- Desktop Links -->
     <ul class="nav-links" role="list">
-      <li><a href="index.html" class="nav-link"><span class="nav-link-icon">◈</span>Sensors</a></li>
+      <li><a href="Sensors.html" class="nav-link"><span class="nav-link-icon">◈</span>Sensors</a></li>
       <li><a href="Testingchart.html" class="nav-link"><span class="nav-link-icon">◈</span>Graphs</a></li>
       <li><a href="Maps.html" class="nav-link"><span class="nav-link-icon">◈</span>Map</a></li>
-      <li><a href="#" class="nav-link"><span class="nav-link-icon">◈</span>About Us</a></li>
+      <li><a href="Aboutus.html" class="nav-link"><span class="nav-link-icon">◈</span>About Us</a></li>
     </ul>
 
     <!-- Status Badge -->
@@ -42,7 +122,7 @@
 
   <!-- Mobile Drawer -->
   <div class="mobile-menu" id="mobileMenu" aria-hidden="true">
-    <a href="index.html" class="mobile-link">
+    <a href="Sensors.html" class="mobile-link">
       <span class="mobile-link-label">Sensors</span>
     </a>
     <a href="Testingchart.html" class="mobile-link">
@@ -52,32 +132,11 @@
       <span class="mobile-link-label">Map</span>
     </a>
     <div class="mobile-divider"></div>
-    <a href="#" class="mobile-link mobile-link-about">
+    <a href="Aboutus.html" class="mobile-link mobile-link-about">
       <span class="mobile-link-label">About Us</span>
     </a>
   </div>
 </nav>
-
-<script>
-  const btn    = document.getElementById('hamburger');
-  const drawer = document.getElementById('mobileMenu');
-
-  btn.addEventListener('click', () => {
-    const isOpen = drawer.classList.toggle('open');
-    btn.classList.toggle('open', isOpen);
-    btn.setAttribute('aria-expanded', isOpen);
-    drawer.setAttribute('aria-hidden', !isOpen);
-  });
-
-  drawer.querySelectorAll('a').forEach(link => {
-    link.addEventListener('click', () => {
-      drawer.classList.remove('open');
-      btn.classList.remove('open');
-      btn.setAttribute('aria-expanded', false);
-      drawer.setAttribute('aria-hidden', true);
-    });
-  });
-</script>
 
 <main>
   <div class="page-header">
@@ -108,6 +167,16 @@
         <div class="stat-value" style="color:#a8d8ea" id="statFlow">— L/min</div>
       </div>
   </div>
+  <!-- ALERT BANNER -->
+  <div id="alertBanner" class="alert-banner alert-normal">
+    <div class="alert-icon" id="alertIcon">✅</div>
+    <div class="alert-content">
+      <div class="alert-title" id="alertTitle">SYSTEM NORMAL</div>
+      <div class="alert-desc" id="alertDesc">All sensors operating within safe parameters.</div>
+    </div>
+    <div class="alert-level-badge" id="alertLevelBadge">LEVEL 0</div>
+  </div>
+
   <!-- MAIN GRID -->
   <div class="main-grid">
 
@@ -155,7 +224,7 @@
         <div class="charts-row">
         <div class="chart-card">
           <div class="chart-title">Water Level · 24h</div>
-          <canvas id="waterChart" height="180"></canvas>
+          <canvas id="waterChart" height="180" style="max-height:280px;"></canvas>
         </div>
         </div>
       </div>
@@ -165,104 +234,168 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-//sample data rani use readings if naa nay actual data source
+// ─── ALERT SYSTEM ─────────────────────────────────────────────────────────────
+// Level 0 = Normal, Level 1 = Warning, Level 2 = Alert
+const ALERT_THRESHOLDS = {
+  water: { warning: 35, alert: 50 },   // cm
+  pm25:  { warning: 25, alert: 40 },   // µg/m³
+  flow:  { warning: 160, alert: 180 }  // L/hour
+};
+
+function getAlertLevel(data) {
+  let level = 0;
+  const triggers = [];
+
+  if (data.water >= ALERT_THRESHOLDS.water.alert) {
+    level = Math.max(level, 2);
+    triggers.push(`Water Level ${data.water}cm (CRITICAL)`);
+  } else if (data.water >= ALERT_THRESHOLDS.water.warning) {
+    level = Math.max(level, 1);
+    triggers.push(`Water Level ${data.water}cm (HIGH)`);
+  }
+
+  if (data.pm25 >= ALERT_THRESHOLDS.pm25.alert) {
+    level = Math.max(level, 2);
+    triggers.push(`PM2.5 ${data.pm25}µg (CRITICAL)`);
+  } else if (data.pm25 >= ALERT_THRESHOLDS.pm25.warning) {
+    level = Math.max(level, 1);
+    triggers.push(`PM2.5 ${data.pm25}µg (HIGH)`);
+  }
+
+  if (data.flow >= ALERT_THRESHOLDS.flow.alert) {
+    level = Math.max(level, 2);
+    triggers.push(`Flowrate ${data.flow}L/h (CRITICAL)`);
+  } else if (data.flow >= ALERT_THRESHOLDS.flow.warning) {
+    level = Math.max(level, 1);
+    triggers.push(`Flowrate ${data.flow}L/h (HIGH)`);
+  }
+
+  return { level, triggers };
+}
+
+function updateAlertBanner(data) {
+  const { level, triggers } = getAlertLevel(data);
+  const banner = document.getElementById('alertBanner');
+  const icon   = document.getElementById('alertIcon');
+  const title  = document.getElementById('alertTitle');
+  const desc   = document.getElementById('alertDesc');
+  const badge  = document.getElementById('alertLevelBadge');
+
+  // Remove all state classes
+  banner.classList.remove('alert-normal', 'alert-warning', 'alert-alert');
+
+  if (level === 0) {
+    banner.classList.add('alert-normal');
+    icon.textContent  = '✅';
+    title.textContent = 'SYSTEM NORMAL';
+    desc.textContent  = 'All sensors operating within safe parameters.';
+    badge.textContent = 'LEVEL 0 · NORMAL';
+  } else if (level === 1) {
+    banner.classList.add('alert-warning');
+    icon.textContent  = '⚠️';
+    title.textContent = 'WARNING DETECTED';
+    desc.textContent  = 'Elevated readings: ' + triggers.join(' · ');
+    badge.textContent = 'LEVEL 1 · WARNING';
+  } else {
+    banner.classList.add('alert-alert');
+    icon.textContent  = '🚨';
+    title.textContent = 'CRITICAL ALERT';
+    desc.textContent  = 'Action required: ' + triggers.join(' · ');
+    badge.textContent = 'LEVEL 2 · ALERT';
+  }
+}
+
+// ─── SENSOR DATA & UPDATES ────────────────────────────────────────────────────
 const sensorData = {
   temp: 28.4, humidity: 67, water: 14, pm25: 9.2, flow: 120
 };
 
 function updateValues() {
-  sensorData.water    = +(sensorData.water    + (Math.random()-0.5)*0.6).toFixed(1);
-  sensorData.pm25     = +(sensorData.pm25     + (Math.random()-0.5)*0.5).toFixed(1);
-  sensorData.flow     = +(sensorData.flow     + (Math.random()-0.5)*10).toFixed(1);
-  sensorData.water    = Math.min(60,Math.max(5,sensorData.water));
-  sensorData.pm25     = Math.min(50,Math.max(2,sensorData.pm25));
-  sensorData.flow     = Math.min(200,Math.max(0,sensorData.flow));
+  sensorData.water = +(sensorData.water + (Math.random()-0.5)*0.6).toFixed(1);
+  sensorData.pm25  = +(sensorData.pm25  + (Math.random()-0.5)*0.5).toFixed(1);
+  sensorData.flow  = +(sensorData.flow  + (Math.random()-0.5)*10).toFixed(1);
+  sensorData.water = Math.min(60, Math.max(5,  sensorData.water));
+  sensorData.pm25  = Math.min(50, Math.max(2,  sensorData.pm25));
+  sensorData.flow  = Math.min(200,Math.max(0,  sensorData.flow));
 
-  document.getElementById('waterVal').textContent   = sensorData.water + 'cm';
-  document.getElementById('pmVal').textContent      = sensorData.pm25 + ' µg';
-  document.getElementById('flowVal').textContent    = sensorData.flow + ' L/hour';
-  document.getElementById('statWater').textContent  = sensorData.water + 'cm';
-  document.getElementById('statPM').textContent     = sensorData.pm25 + ' µg';
-  document.getElementById('statFlow').textContent   = sensorData.flow + ' L/hour';
+  document.getElementById('waterVal').textContent  = sensorData.water + 'cm';
+  document.getElementById('pmVal').textContent     = sensorData.pm25  + ' µg';
+  document.getElementById('flowVal').textContent   = sensorData.flow  + ' L/hour';
+  document.getElementById('statWater').textContent = sensorData.water + 'cm';
+  document.getElementById('statPM').textContent    = sensorData.pm25  + ' µg';
+  document.getElementById('statFlow').textContent  = sensorData.flow  + ' L/hour';
 
-  document.getElementById('waterBar').style.width   = (sensorData.water/60*100) + '%';
-  document.getElementById('pmBar').style.width      = (sensorData.pm25/50*100) + '%';
-  document.getElementById('flowBar').style.width    = (sensorData.flow/200*100) + '%';
+  document.getElementById('waterBar').style.width  = (sensorData.water/60*100)  + '%';
+  document.getElementById('pmBar').style.width     = (sensorData.pm25/50*100)   + '%';
+  document.getElementById('flowBar').style.width   = (sensorData.flow/200*100)  + '%';
+
+  // Update alert banner every refresh
+  updateAlertBanner(sensorData);
 
   const now = new Date();
-  document.getElementById('sensorTime').textContent = now.toLocaleTimeString();
-  document.getElementById('lastUpdate').textContent = `// UPDATED JUST NOW · GUADALUPE SECTOR`;
+  document.getElementById('sensorTime').textContent  = now.toLocaleTimeString();
+  document.getElementById('lastUpdate').textContent  = '// UPDATED JUST NOW · GUADALUPE SECTOR';
   document.getElementById('currentTime').textContent = now.toUTCString().replace('GMT','UTC');
 }
 
 updateValues();
 
-//chart data generation
+// ─── CHART SETUP ──────────────────────────────────────────────────────────────
 function makeLabels() {
   const labels = [];
   const now = new Date();
-  for(let i=23;i>=0;i--) {
-    const d = new Date(now - i*3600000);
+  for (let i = 23; i >= 0; i--) {
+    const d = new Date(now - i * 3600000);
     labels.push(d.getHours().toString().padStart(2,'0') + ':00');
   }
   return labels;
 }
 
 function fakeHistory(base, variance, len=24) {
-  return Array.from({length:len}, (_,i)=>{
-    const trend = Math.sin(i/4)*variance*0.4;
+  return Array.from({length: len}, (_, i) => {
+    const trend = Math.sin(i/4) * variance * 0.4;
     return +(base + trend + (Math.random()-0.5)*variance).toFixed(1);
   });
 }
 
 const labels = makeLabels();
-const chartDefaults = {
-  borderWidth: 2,
-  pointRadius: 0,
-  tension: 0.45,
-  fill: true,
-};
+const chartDefaults = { borderWidth: 2, pointRadius: 0, tension: 0.45, fill: true };
 
-//temp chart
-
-
-//water chart
-const waterCtx = document.getElementById('waterChart').getContext('2d');
+// Water Level chart
+const waterCtx  = document.getElementById('waterChart').getContext('2d');
 const waterGrad = waterCtx.createLinearGradient(0,0,0,120);
 waterGrad.addColorStop(0,'rgba(106,172,170,0.4)');
 waterGrad.addColorStop(1,'rgba(106,172,170,0)');
+
 const waterChart = new Chart(waterCtx, {
-  type:'line',
-  data:{
+  type: 'line',
+  data: {
     labels,
-    datasets:[{
+    datasets: [{
       ...chartDefaults,
-      label:'Water cm',
+      label: 'Water cm',
       data: fakeHistory(14, 5),
-      borderColor:'#6aacaa',
+      borderColor: '#6aacaa',
       backgroundColor: waterGrad,
     }]
   },
-  options:{
-    responsive:true,
-    plugins:{ legend:{display:false} },
-    scales:{
-      x:{ ticks:{ color:'#9dbebb', font:{size:9,family:'Share Tech Mono'}, maxTicksLimit:6 }, grid:{color:'rgba(106,172,170,0.06)'} },
-      y:{ ticks:{ color:'#9dbebb', font:{size:9,family:'Share Tech Mono'} }, grid:{color:'rgba(106,172,170,0.06)'} }
+  options: {
+    responsive: true,
+    animation: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color:'#9dbebb', font:{size:9,family:'Share Tech Mono'}, maxTicksLimit:6 }, grid:{color:'rgba(106,172,170,0.06)'} },
+      y: { ticks: { color:'#9dbebb', font:{size:9,family:'Share Tech Mono'} },                 grid:{color:'rgba(106,172,170,0.06)'} }
     }
   }
 });
 
-//data updates every 3
+// ─── LIVE UPDATE INTERVAL ─────────────────────────────────────────────────────
 setInterval(() => {
   updateValues();
-  const t = sensorData.temp;
-  const w = sensorData.water;
-  tempChart.data.datasets[0].data.push(t);
-  tempChart.data.datasets[0].data.shift();
-  waterChart.data.datasets[0].data.push(w);
+  // Push latest water reading onto the chart and drop the oldest
+  waterChart.data.datasets[0].data.push(sensorData.water);
   waterChart.data.datasets[0].data.shift();
-  tempChart.update('none');
   waterChart.update('none');
 }, 4000);
 </script>
