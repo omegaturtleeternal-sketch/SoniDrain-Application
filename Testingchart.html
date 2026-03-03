@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoniDrain Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="sonidrain.css"/>
+
+</head>
+<body class="chart-page">
+
+<!-- ══════════════ TOP NAVBAR ══════════════ -->
+<nav id="mainNav">
+  <div class="nav-inner">
+    <a class="nav-title" href="#">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAdYAAAEeCAYAAAA3oTSDAAEAAElEQVR4nOy9d7wsWVW3/6y9d1V1OOfcNJEhgwEBAVFJigHkVX7d8Kroq2J6URABSSJiVkTEVwUMmAAVEBgk000OQ45DhmGGyfHOzSd0qqodfn/squ4+d+69M8PIZUI984" alt="SoniDrain logo" class="nav-logo"/>
+      <span class="nav-brand">SONI<span class="nav-brand-accent">DRAIN</span></span>
+    </a>
+    <ul class="nav-links" role="list">
+      <li><a href="index.html" class="nav-link"><span class="nav-link-icon">◈</span>Sensors</a></li>
+      <li><a href="Testingchart.html" class="nav-link active"><span class="nav-link-icon">◈</span>Graphs</a></li>
+      <li><a href="Maps.html" class="nav-link"><span class="nav-link-icon">◈</span>Map</a></li>
+      <li><a href="Aboutus.html" class="nav-link"><span class="nav-link-icon">◈</span>About Us</a></li>
+    </ul>
+    <div class="nav-status">
+      <span class="status-dot"></span>
+      <span class="status-text">Live</span>
+    </div>
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <div class="mobile-menu" id="mobileMenu" aria-hidden="true">
+    <a href="index.html" class="mobile-link"><span class="mobile-link-label">Sensors</span></a>
+    <a href="Testingchart.html" class="mobile-link"><span class="mobile-link-label">Graphs</span></a>
+    <a href="Maps.html" class="mobile-link"><span class="mobile-link-label">Map</span></a>
+    <div class="mobile-divider"></div>
+    <a href="Aboutus.html" class="mobile-link mobile-link-about"><span class="mobile-link-label">About Us</span></a>
+  </div>
+</nav>
+
+<!-- ══════════════ APP SHELL ══════════════ -->
+<div class="app-shell">
+
+  <!-- ══ LEFT SIDEBAR ══ -->
+  <aside class="left-sidebar">
+
+    <!-- Mobile toggle button -->
+    <button class="sidebar-toggle-btn" id="sidebarToggle" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+      <span id="sidebarToggleLabel">Show Controls</span>
+    </button>
+
+    <!-- Always-visible metrics -->
+    <div class="sidebar-header">
+      <div class="sidebar-section-label">Overview</div>
+
+      <div class="sidebar-metric" style="--metric-accent: #4fa8c5;">
+        <div class="sm-label">Avg Monthly</div>
+        <div class="sm-value" id="statAvg">—</div>
+        <div class="sm-sub">average reading</div>
+      </div>
+
+      <div class="sidebar-metric" style="--metric-accent: #7ee8a2;">
+        <div class="sm-label">Latest Value</div>
+        <div class="sm-value" id="statLatest">—</div>
+        <div class="sm-sub">most recent data point</div>
+      </div>
+
+      <div class="sidebar-metric" style="--metric-accent: #f59e0b;">
+        <div class="sm-label">Total Points</div>
+        <div class="sm-value" id="statCount">—</div>
+        <div class="sm-sub">records loaded</div>
+      </div>
+    </div>
+
+    <!-- Collapsible on mobile -->
+    <div class="sidebar-collapsible" id="sidebarCollapsible">
+      <div class="sidebar-controls-row">
+
+        <!-- Nav items -->
+        <nav class="sidebar-nav">
+          <div class="sidebar-section-label" style="padding: 0 0.2rem; margin-bottom: 0.6rem;">View Mode</div>
+          <div class="sidebar-nav-item active" data-view="all" onclick="setView('all', this)">
+            <span class="nav-item-dot"></span>All Fields
+          </div>
+          <div class="sidebar-nav-item" data-view="single" onclick="setView('single', this)">
+            <span class="nav-item-dot"></span>Single Field
+          </div>
+        </nav>
+
+        <!-- Controls -->
+        <div class="sidebar-controls">
+
+          <div class="ctrl-group" id="singleFieldGroup" style="display:none;">
+            <div class="ctrl-group-label">Field</div>
+            <div class="ctrl-select-wrap">
+              <select id="valueField" onchange="generateChart()">
+                <option value="">Select field…</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="ctrl-group">
+            <div class="ctrl-group-label">Chart Type</div>
+            <div class="ctrl-select-wrap">
+              <select id="chartType" onchange="generateChart()">
+                <option value="line">Line Chart</option>
+                <option value="bar">Bar Chart</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="ctrl-group">
+            <div class="ctrl-toggle-row">
+              <span class="ctrl-toggle-label">Auto-refresh</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="autoRefresh">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="ctrl-group">
+            <div class="ctrl-input-row">
+              <span class="ctrl-input-label">Interval (s)</span>
+              <input type="number" id="refreshInterval" value="30" min="5">
+            </div>
+          </div>
+
+          <div class="ctrl-group">
+            <button class="fetch-btn" id="refreshBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              </svg>
+              Fetch Data
+            </button>
+          </div>
+
+        </div><!-- /sidebar-controls -->
+      </div><!-- /sidebar-controls-row -->
+    </div><!-- /sidebar-collapsible -->
+
+    <!-- Footer -->
+    <div class="sidebar-footer">
+      <span class="sidebar-status-dot"></span>
+      <span class="sidebar-status-text" id="lastUpdated">Connecting…</span>
+    </div>
+
+  </aside><!-- /left-sidebar -->
+
+  <!-- ══ MAIN CONTENT ══ -->
+  <main class="main-area">
+
+    <!-- Top bar -->
+    <div class="main-topbar">
+      <div class="main-title-block">
+        <div class="main-eyebrow">Sensor Network · Historical Data</div>
+        <div class="main-title">Sensor Graphs</div>
+        <div class="main-subtitle" id="activeFieldLabel">Loading data from Supabase…</div>
+      </div>
+
+      <div class="main-stat-pills">
+        <div class="stat-pill">
+          <div class="stat-pill-value neutral" id="pillAvg">—</div>
+          <div class="stat-pill-label">Average reading</div>
+        </div>
+        <div class="stat-pill">
+          <div class="stat-pill-value" id="pillTrend">—</div>
+          <div class="stat-pill-label">vs previous</div>
+        </div>
+        <div class="stat-pill">
+          <div class="stat-pill-value positive" id="pillPoints">—</div>
+          <div class="stat-pill-label">data points</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-divider"></div>
+
+    <!-- Chart -->
+    <div class="main-chart-area">
+      <div class="chart-legend-row" id="chartLegendRow"></div>
+      <div class="chart-canvas-wrap">
+        <canvas id="myChart"></canvas>
+      </div>
+    </div>
+
+  </main>
+
+</div><!-- /app-shell -->
+
+
+<!-- ══════════════ SCRIPTS ══════════════ -->
+<script>
+  // Hamburger nav toggle
+  const btn    = document.getElementById('hamburger');
+  const drawer = document.getElementById('mobileMenu');
+  btn.addEventListener('click', () => {
+    const isOpen = drawer.classList.toggle('open');
+    btn.classList.toggle('open', isOpen);
+    btn.setAttribute('aria-expanded', isOpen);
+    drawer.setAttribute('aria-hidden', !isOpen);
+  });
+  drawer.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', () => {
+      drawer.classList.remove('open');
+      btn.classList.remove('open');
+      btn.setAttribute('aria-expanded', false);
+      drawer.setAttribute('aria-hidden', true);
+    });
+  });
+
+  // Sidebar collapsible toggle (mobile)
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  const sidebarCollapsible = document.getElementById('sidebarCollapsible');
+  const sidebarToggleLabel = document.getElementById('sidebarToggleLabel');
+
+  sidebarToggle.addEventListener('click', () => {
+    const isOpen = sidebarCollapsible.classList.toggle('open');
+    sidebarToggle.setAttribute('aria-expanded', isOpen);
+    sidebarToggleLabel.textContent = isOpen ? 'Hide Controls' : 'Show Controls';
+  });
+
+  // On desktop, always show the collapsible
+  function handleSidebarVisibility() {
+    if (window.innerWidth > 900) {
+      sidebarCollapsible.classList.add('open');
+      sidebarToggle.style.display = 'none';
+    } else {
+      sidebarToggle.style.display = 'flex';
+    }
+  }
+  window.addEventListener('resize', handleSidebarVisibility);
+  handleSidebarVisibility();
+</script>
+
+<script>
+  // ── SUPABASE CONFIG ──
+  const SUPABASE_URL = 'https://aeuobgeyqinnnrpjyktz.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_rV_TR9zoVwXge5TA6REvMg_BpFS5MAC';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let chart = null;
+  let currentViewMode = 'all';
+
+  const palette = [
+    { border: '#4fa8c5', bg: 'rgba(79, 168, 197, 0.1)' },
+    { border: '#7ee8a2', bg: 'rgba(126, 232, 162, 0.1)' },
+    { border: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)'  },
+    { border: '#f87171', bg: 'rgba(248, 113, 113, 0.1)' },
+    { border: '#a78bfa', bg: 'rgba(167, 139, 250, 0.1)' },
+    { border: '#34d399', bg: 'rgba(52,  211, 153, 0.1)' },
+  ];
+
+  const fieldColorMap = {};
+  let nextSlot = 0;
+  function getFieldColor(name) {
+    if (!(name in fieldColorMap)) {
+      fieldColorMap[name] = nextSlot % palette.length;
+      nextSlot++;
+    }
+    return palette[fieldColorMap[name]];
+  }
+
+  function setView(mode, el) {
+    currentViewMode = mode;
+    document.querySelectorAll('.sidebar-nav-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+    const sg = document.getElementById('singleFieldGroup');
+    sg.style.display = mode === 'single' ? 'block' : 'none';
+    generateChart();
+  }
+
+  async function fetchData(selectedField = null) {
+    try {
+      const { data, error } = await supabaseClient.from('sensors_table').select('*').limit(1000);
+      if (error || !data || data.length === 0) return null;
+
+      populateFieldSelector(data);
+
+      const keys      = Object.keys(data[0]);
+      const timeField = keys.find(k => /time|date|timestamp|created_at/i.test(k));
+      if (timeField) data.sort((a, b) => new Date(a[timeField]) - new Date(b[timeField]));
+
+      const labels = data.map((row, idx) => {
+        if (timeField && row[timeField]) {
+          const d = new Date(row[timeField]);
+          return isNaN(d) ? String(row[timeField]) : d.toLocaleString();
+        }
+        return `#${idx + 1}`;
+      });
+
+      const numericKeys = keys.filter(k => {
+        if (k === timeField || k.toLowerCase() === 'id') return false;
+        return data.some(r => typeof r[k] === 'number' ||
+          (!isNaN(parseFloat(r[k])) && r[k] !== null && r[k] !== ''));
+      });
+
+      if (currentViewMode === 'single') {
+        const field = (selectedField && selectedField !== '') ? selectedField : numericKeys[0];
+        const values = data.map(r => {
+          const v = r[field]; return typeof v === 'number' ? v : parseFloat(v) || 0;
+        });
+        updateSidebarStats(values, field);
+        return { labels, numericKeys: [field], allData: data, timeField };
+      }
+
+      updateSidebarStats(
+        data.map(r => { const v = r[numericKeys[0]]; return typeof v === 'number' ? v : parseFloat(v) || 0; }),
+        numericKeys[0] || 'sensor'
+      );
+      return { labels, numericKeys, allData: data, timeField };
+
+    } catch (err) {
+      console.warn('Supabase unreachable:', err);
+      return null;
+    }
+  }
+
+  function updateSidebarStats(values, field) {
+    if (!values || values.length === 0) return;
+    const avg    = (values.reduce((s, v) => s + v, 0) / values.length).toFixed(2);
+    const latest = values[values.length - 1].toFixed(2);
+    const count  = values.length;
+
+    document.getElementById('statAvg').textContent    = avg;
+    document.getElementById('statLatest').textContent = latest;
+    document.getElementById('statCount').textContent  = count;
+    document.getElementById('pillAvg').textContent    = avg;
+    document.getElementById('pillPoints').textContent = count;
+
+    const half     = Math.floor(values.length / 2);
+    const firstAvg = values.slice(0, half).reduce((s, v) => s + v, 0) / half;
+    const lastAvg  = values.slice(half).reduce((s, v) => s + v, 0) / (values.length - half);
+    const pct      = firstAvg ? (((lastAvg - firstAvg) / firstAvg) * 100).toFixed(1) : 0;
+    const pill     = document.getElementById('pillTrend');
+    pill.textContent = (pct >= 0 ? '+' : '') + pct + '%';
+    pill.className = 'stat-pill-value ' + (pct >= 0 ? 'positive' : 'negative');
+
+    document.getElementById('activeFieldLabel').textContent =
+      `Showing field: ${field} · ${count} records`;
+    document.getElementById('lastUpdated').textContent =
+      'Updated ' + new Date().toLocaleTimeString();
+  }
+
+  function populateFieldSelector(rows) {
+    const sel  = document.getElementById('valueField');
+    const cur  = sel.value;
+    const keys = Object.keys(rows[0]);
+    sel.innerHTML = '<option value="">Select field…</option>';
+    keys.forEach(k => {
+      if (k.toLowerCase() === 'id') return;
+      if (/time|date|timestamp|created_at/i.test(k)) return;
+      if (rows.some(r => typeof r[k] === 'number' ||
+          (!isNaN(parseFloat(r[k])) && r[k] !== null && r[k] !== ''))) {
+        const o = document.createElement('option');
+        o.value = k; o.textContent = k;
+        sel.appendChild(o);
+      }
+    });
+    if (cur) sel.value = cur;
+  }
+
+  function buildLegend(datasets) {
+    const row = document.getElementById('chartLegendRow');
+    row.innerHTML = '';
+    datasets.forEach(ds => {
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      item.innerHTML = `<span class="legend-swatch" style="background:${ds.borderColor};"></span>${ds.label}`;
+      row.appendChild(item);
+    });
+  }
+
+  async function generateChart() {
+    const chartType     = document.getElementById('chartType').value;
+    const selectedField = document.getElementById('valueField').value;
+    const ctx           = document.getElementById('myChart').getContext('2d');
+
+    const result = await fetchData(selectedField);
+
+    if (chart) { chart.destroy(); chart = null; }
+
+    if (!result) {
+      const clr = palette[0];
+      chart = new Chart(ctx, {
+        type: chartType,
+        data: {
+          labels: ['Feb 20 10:00','Feb 20 11:00','Feb 20 12:00','Feb 20 13:00','Feb 20 14:00'],
+          datasets: [{ label: 'sample', data: [12, 15, 9, 20, 18],
+            borderColor: clr.border, backgroundColor: clr.bg, borderWidth: 2,
+            tension: 0.4, pointRadius: 3, fill: true }]
+        },
+        options: chartOptions()
+      });
+      buildLegend(chart.data.datasets);
+      document.getElementById('lastUpdated').textContent = 'Sample data (no DB)';
+      return;
+    }
+
+    const { labels, numericKeys, allData } = result;
+
+    const datasets = numericKeys.map(k => {
+      const clr    = getFieldColor(k);
+      const values = allData.map(r => {
+        const v = r[k]; return typeof v === 'number' ? v : parseFloat(v) || 0;
+      });
+      return {
+        label: k,
+        data: values,
+        borderColor: clr.border,
+        backgroundColor: clr.bg,
+        borderWidth: 2,
+        tension: 0.4,
+        pointRadius: 2,
+        pointHoverRadius: 5,
+        fill: true
+      };
+    });
+
+    chart = new Chart(ctx, {
+      type: chartType,
+      data: { labels, datasets },
+      options: chartOptions()
+    });
+
+    buildLegend(datasets);
+  }
+
+  function chartOptions() {
+    const isMobile = window.innerWidth <= 540;
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: {
+          ticks: {
+            color: 'rgba(157,190,187,0.55)',
+            font: { family: "'JetBrains Mono', monospace", size: isMobile ? 8 : 10 },
+            maxTicksLimit: isMobile ? 5 : 10,
+            maxRotation: 35,
+          },
+          grid: { color: 'rgba(79,168,197,0.05)' },
+          border: { color: 'rgba(79,168,197,0.1)' }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            color: 'rgba(157,190,187,0.55)',
+            font: { family: "'JetBrains Mono', monospace", size: isMobile ? 8 : 10 }
+          },
+          grid: { color: 'rgba(79,168,197,0.07)' },
+          border: { color: 'rgba(79,168,197,0.1)', dash: [4, 4] }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(11, 37, 69, 0.95)',
+          titleColor: '#4fa8c5',
+          bodyColor: '#eef4ed',
+          borderColor: 'rgba(79,168,197,0.35)',
+          borderWidth: 1,
+          padding: isMobile ? 8 : 12,
+          titleFont: { family: "'JetBrains Mono', monospace", size: isMobile ? 9 : 11 },
+          bodyFont:  { family: "'DM Sans', sans-serif", size: isMobile ? 11 : 12 },
+          cornerRadius: 6,
+          callbacks: {
+            title: (items) => items[0].label,
+            label: (item) => ` ${item.dataset.label}: ${item.formattedValue}`
+          }
+        }
+      }
+    };
+  }
+
+  // Redraw chart on resize so options (mobile tick counts etc.) refresh
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { generateChart(); }, 250);
+  });
+
+  // Auto-refresh
+  let autoRefreshId = null;
+  function startAutoRefresh() {
+    stopAutoRefresh();
+    const sec = Math.max(5, parseInt(document.getElementById('refreshInterval').value || '30', 10));
+    autoRefreshId = setInterval(generateChart, sec * 1000);
+  }
+  function stopAutoRefresh() {
+    if (autoRefreshId) { clearInterval(autoRefreshId); autoRefreshId = null; }
+  }
+
+  document.getElementById('refreshBtn').addEventListener('click', generateChart);
+  document.getElementById('autoRefresh').addEventListener('change', (e) => {
+    e.target.checked ? startAutoRefresh() : stopAutoRefresh();
+  });
+
+  window.addEventListener('DOMContentLoaded', () => generateChart());
+</script>
+
+</body>
+</html>
