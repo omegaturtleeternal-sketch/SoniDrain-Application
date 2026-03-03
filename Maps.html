@@ -8,6 +8,28 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="sonidrain.css"/>
+    <style>
+      /* Fix: map-container needs an explicit height (not just min-height)
+         so that #map { height: 100% } has a real parent height to resolve against.
+         We match the min-height already set in sonidrain.css (560px).          */
+      .map-container {
+        height: 560px;
+      }
+
+      /* On mobile sonidrain.css already handles things fine with flex-direction:column,
+         but we need to let it grow taller if the sidebar is visible on top. */
+      @media (max-width: 700px) {
+        .map-container {
+          height: auto;        /* let flex column decide total height */
+          min-height: 520px;   /* keep the CSS value from sonidrain.css  */
+        }
+
+        /* The map tile pane itself still needs an explicit height on mobile */
+        #map {
+          height: 340px;
+        }
+      }
+    </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 </head>
 <body class="chart-page">
@@ -26,7 +48,7 @@
       <li><a href="Sensors.html" class="nav-link"><span class="nav-link-icon">◈</span>Sensors</a></li>
       <li><a href="Testingchart.html" class="nav-link"><span class="nav-link-icon">◈</span>Graphs</a></li>
       <li><a href="Maps.html" class="nav-link"><span class="nav-link-icon">◈</span>Map</a></li>
-      <li><a href="#" class="nav-link"><span class="nav-link-icon">◈</span>About Us</a></li>
+      <li><a href="Aboutus.html" class="nav-link"><span class="nav-link-icon">◈</span>About Us</a></li>
     </ul>
 
     <!-- Status Badge -->
@@ -53,7 +75,7 @@
       <span class="mobile-link-label">Map</span>
     </a>
     <div class="mobile-divider"></div>
-    <a href="#" class="mobile-link mobile-link-about">
+    <a href="Aboutus.html" class="mobile-link mobile-link-about">
       <span class="mobile-link-label">About Us</span>
     </a>
   </div>
@@ -81,127 +103,185 @@
 </script>
 
 
-<!--main content-->
-  <h2>Sensor Locations</h2>
-  <div class="map-container">
-    <div class="sidebar">
-      <div class="sidebar-title">Sensor Locations</div>
-      <div id="sensor-list"></div>
-    </div>
-    <div id="map" style="flex:1;"></div>
+<!-- ─── Page Wrapper ────────────────────────────────────────── -->
+<div class="page-wrapper">
+
+  <!-- Section Header -->
+  <div class="section-header">
+    <h2>SENSOR <span>MAP</span></h2>
+    <div class="header-rule"></div>
+    <div class="header-tag">● LIVE DATA</div>
   </div>
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script>
-    var map = L.map('map', {
-      scrollWheelZoom: false,
-      zoomControl: true,
-      keyboard: false       /* disable +/‑ keyboard zoom in case it triggers page scroll */
-    }).setView([10.3157, 123.8854], 13);
+  <!-- Map Container -->
+  <div class="map-container">
 
-    // Zoom controls are anchors with href="#"; browsers will scroll to top
-    // when they're clicked.  We remove the href entirely and also prevent
-    // default just in case the controls are re‑created later.
-    map.whenReady(function() {
-      var container = map.zoomControl && map.zoomControl.getContainer();
-      if (container) {
-        var zoomButtons = container.querySelectorAll('a');
-        zoomButtons.forEach(function(btn) {
-          btn.removeAttribute('href');
-          btn.addEventListener('click', function(e) {
-            e.preventDefault();
-          });
-        });
-      }
-    });
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-title">Active Sensors</div>
+      <div class="sidebar-scroll" id="sensorList">
+        <!-- Cards injected by JS -->
+      </div>
+    </div>
 
-    // Fallback: catch any clicks on zoom-control anchors at document level
-    document.addEventListener('click', function(e) {
-      if (e.target.closest('.leaflet-control-zoom a')) {
-        e.preventDefault();
-      }
-    });
+    <!-- Leaflet Map -->
+    <div id="map"></div>
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+  </div>
+</div>
 
-    var cyanIcon = new L.Icon({
-      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-      shadowUrl: 'https://unpkg.com/leaflet/dist/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
-    });
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-    var sensorLocations = [
-      { name: "Sensor 1", coords: [10.3157, 123.8854] },
-    ];
+<script>
+  // ─── Sensor Data ────────────────────────────────────────────
+  const sensors = [
+    { id: 'SD-01', lat: 10.3157, lng: 123.8854, name: 'SD-01' },
+  ];
 
-    var markers = [];
-    var cards = [];
-    var list = document.getElementById('sensor-list');
+  // ─── Initialise Map ─────────────────────────────────────────
+  const map = L.map('map', {
+    center: [10.7202, 122.5621],
+    zoom: 15,
+    scrollWheelZoom: false,
+    keyboard: false,
+    zoomControl: true,
+  });
 
-    sensorLocations.forEach(function(sensor, i) {
-      // Create marker
-      var marker = L.marker(sensor.coords, { icon: cyanIcon })
-        .addTo(map)
-        .bindPopup("<b>" + sensor.name + "</b><br>" + sensor.coords[0].toFixed(4) + ", " + sensor.coords[1].toFixed(4));
-      markers.push(marker);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(map);
 
-      // Create sidebar card
-      var card = document.createElement('div');
+  // Custom cyan icon
+  const sensorIcon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:18px; height:18px;
+      background: rgba(79,168,197,0.25);
+      border: 2px solid #4fa8c5;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(79,168,197,0.6), 0 0 0 4px rgba(79,168,197,0.1);
+      cursor: pointer;
+      transition: transform 0.2s;
+    "></div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+    popupAnchor: [0, -12],
+  });
+
+  const activeIcon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:22px; height:22px;
+      background: rgba(79,168,197,0.4);
+      border: 2px solid #4fa8c5;
+      border-radius: 50%;
+      box-shadow: 0 0 16px rgba(79,168,197,0.9), 0 0 0 6px rgba(79,168,197,0.15);
+      cursor: pointer;
+    "></div>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+    popupAnchor: [0, -14],
+  });
+
+  // ─── Geocoding ───────────────────────────────────────────────
+  const geocodeCache = {};
+
+  async function getPlaceName(lat, lng) {
+    const key = `${lat},${lng}`;
+    if (geocodeCache[key]) return geocodeCache[key];
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data = await res.json();
+      const addr = data.address || {};
+      const place = addr.road || addr.suburb || addr.village || addr.town || addr.city || 'Unknown Location';
+      geocodeCache[key] = place;
+      return place;
+    } catch {
+      return 'Location unavailable';
+    }
+  }
+
+  // ─── Build Sidebar + Map Markers ─────────────────────────────
+  const markers = {};
+  let activeCardId = null;
+
+  function setActiveCard(id) {
+    if (activeCardId) {
+      const prev = document.getElementById(`card-${activeCardId}`);
+      if (prev) prev.classList.remove('active');
+      if (markers[activeCardId]) markers[activeCardId].setIcon(sensorIcon);
+    }
+    activeCardId = id;
+    const card = document.getElementById(`card-${id}`);
+    if (card) {
+      card.classList.add('active');
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    if (markers[id]) markers[id].setIcon(activeIcon);
+  }
+
+  async function buildInterface() {
+    const list = document.getElementById('sensorList');
+
+    for (const s of sensors) {
+      // Create card immediately with loading state
+      const card = document.createElement('div');
       card.className = 'sensor-card';
-      card.innerHTML =
-        '<div class="sensor-name">' + sensor.name + '</div>' +
-        '<div class="sensor-place" style="font-size:0.78rem;color:#eef4ed;margin-bottom:4px;font-style:italic;">Loading location...</div>' +
-        '<div class="sensor-coords">' + sensor.coords[0].toFixed(4) + ', ' + sensor.coords[1].toFixed(4) + '</div>' +
-        '<span class="go-btn">&#x2315; Zoom In</span>';
+      card.id = `card-${s.id}`;
+      card.innerHTML = `
+        <div class="sensor-name">${s.name}</div>
+        <div class="sensor-place" id="place-${s.id}" style="color:var(--text-lo);font-style:normal">loading location…</div>
+        <div class="sensor-coords">${s.lat.toFixed(5)}, ${s.lng.toFixed(5)}</div>
+        <span class="go-btn">Zoom In →</span>
+      `;
 
-      card.addEventListener('click', function() {
-        map.flyTo(sensor.coords, 18, { duration: 1 });
-        marker.openPopup();
-        cards.forEach(function(c) { c.classList.remove('active'); });
-        card.classList.add('active');
+      card.addEventListener('click', () => {
+        setActiveCard(s.id);
+        map.flyTo([s.lat, s.lng], 17, { animate: true, duration: 0.8 });
+        markers[s.id].openPopup();
       });
 
-      // Clicking marker activates card too
-      marker.on('click', function() {
-        cards.forEach(function(c) { c.classList.remove('active'); });
-        card.classList.add('active');
-        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      });
-
-      cards.push(card);
       list.appendChild(card);
 
-      // Reverse geocode using Nominatim
-      fetch('https://nominatim.openstreetmap.org/reverse?lat=' + sensor.coords[0] + '&lon=' + sensor.coords[1] + '&format=json')
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-          var place = '';
-          if (data && data.address) {
-            var a = data.address;
-            place = a.road || a.neighbourhood || a.suburb || a.village || a.town || a.city || '';
-            if (a.suburb && a.road) place = a.road + ', ' + a.suburb;
-            else if (a.city) place += (place ? ', ' : '') + a.city;
-          }
-          if (!place && data.display_name) place = data.display_name.split(',').slice(0,2).join(',');
-          card.querySelector('.sensor-place').textContent = place || 'Unknown location';
-          // Update popup too
-          marker.setPopupContent('<b>' + sensor.name + '</b><br>' + place + '<br><span style="color:#9dbebb;font-size:0.75rem">' + sensor.coords[0].toFixed(4) + ', ' + sensor.coords[1].toFixed(4) + '</span>');
-        })
-        .catch(function() {
-          card.querySelector('.sensor-place').textContent = 'Location unavailable';
-        });
-    });
+      // Add marker
+      const marker = L.marker([s.lat, s.lng], { icon: sensorIcon }).addTo(map);
+      markers[s.id] = marker;
 
-    // keep map sized correctly when orientation/resolution changes
-    window.addEventListener('resize', function() {
-      if (map) map.invalidateSize();
-    });
-  </script>
+      marker.bindPopup(`<b>${s.name}</b><br><span id="popup-place-${s.id}" style="color:var(--text-mid)">Loading…</span>`);
+
+      marker.on('click', () => {
+        setActiveCard(s.id);
+        map.flyTo([s.lat, s.lng], 17, { animate: true, duration: 0.6 });
+      });
+
+      // Geocode async
+      getPlaceName(s.lat, s.lng).then(place => {
+        const el = document.getElementById(`place-${s.id}`);
+        if (el) {
+          el.textContent = place;
+          el.style.color = '';
+          el.style.fontStyle = '';
+        }
+        const popupEl = document.getElementById(`popup-place-${s.id}`);
+        if (popupEl) popupEl.textContent = place;
+        marker.getPopup()?.setContent(`<b>${s.name}</b><br><span style="color:var(--text-mid)">${place}</span>`);
+      });
+    }
+
+    // Fit map to all markers
+    if (sensors.length > 0) {
+      const bounds = L.latLngBounds(sensors.map(s => [s.lat, s.lng]));
+      map.fitBounds(bounds, { padding: [40, 40] });
+    }
+  }
+
+  buildInterface();
+</script>
+
 </body>
 </html>
